@@ -1,0 +1,45 @@
+{
+  "name": "@arbiter/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "prebuild": "npm run build --workspace=@arbiter/core",
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -b",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@arbiter/core": "0.1.0",
+    "@tetherto/wdk": "^1.0.0-beta.6",
+    "@tetherto/wdk-protocol-bridge-usdt0-evm": "^1.0.0-beta.3",
+    "@tetherto/wdk-wallet-btc": "^1.0.0-beta.6",
+    "@tetherto/wdk-wallet-evm": "^1.0.0-beta.8",
+    "@tetherto/wdk-wallet-solana": "^1.0.0-beta.5",
+    "@tetherto/wdk-wallet-ton": "^1.0.0-beta.7",
+    "@supabase/supabase-js": "^2.99.2",
+    "cors": "^2.8.5",
+    "crypto-js": "^4.2.0",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.11.0",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "supertest": "^7.1.4",
+    "ws": "^8.19.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/crypto-js": "^4.2.2",
+    "@types/express": "^5.0.3",
+    "@types/node": "^20.17.30",
+    "@types/supertest": "^6.0.3",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  }
+}
