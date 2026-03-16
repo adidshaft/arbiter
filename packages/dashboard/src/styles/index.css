@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at 10% 10%, rgba(53, 241, 162, 0.14), transparent 18%),
+      radial-gradient(circle at 85% 15%, rgba(137, 248, 200, 0.08), transparent 16%),
+      radial-gradient(circle at 75% 82%, rgba(255, 127, 97, 0.08), transparent 18%),
+      linear-gradient(180deg, #041011 0%, #050909 42%, #070d0e 100%);
+    color: #f5f1e8;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  ::selection {
+    background: rgba(53, 241, 162, 0.2);
+    color: #f5f1e8;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .arbiter-panel {
+    @apply rounded-2xl border border-panelBorder bg-panel/95 shadow-glow backdrop-blur-xl;
+  }
+
+  .arbiter-card {
+    @apply rounded-2xl border border-panelBorder bg-panelSoft/95 p-5 shadow-glow backdrop-blur-xl;
+  }
+
+  .arbiter-label {
+    @apply text-[11px] uppercase tracking-[0.24em] text-mintSoft/70;
+  }
+
+  .arbiter-mono {
+    font-family: 'Space Mono', monospace;
+  }
+
+  .arbiter-field {
+    @apply w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-sand outline-none transition placeholder:text-white/30 focus:border-mint/70 focus:ring-2 focus:ring-mint/15;
+  }
+
+  .arbiter-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-mint/30 bg-mint/10 px-3 py-2 text-sm font-medium text-mint transition hover:border-mint/60 hover:bg-mint/15;
+  }
+
+  .arbiter-button-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-sand transition hover:border-white/20 hover:bg-white/10;
+  }
+
+  .arbiter-badge {
+    @apply inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-sand/80;
+  }
+}
