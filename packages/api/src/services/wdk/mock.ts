@@ -199,6 +199,8 @@ function createOrGetWallet(seedPhrase: string, chainKey: MockChainKey, index: nu
   const address = buildAddress(seedPhrase, chainKey, index)
   const material = stableHash(fingerprint, chainKey, String(index), 'balances')
   const nativeRaw = BigInt(1_000_000_000_000_000_000) * BigInt(2 + ((material.at(0) ?? 0) % 11))
+  // Keep raw token balances as bigint values end-to-end so Solana-sized token units
+  // never round through number parsing in mock mode.
   const usdtScale = chainKey === 'bitcoin' ? 10_000_000n : 1_000_000n
   const usdtRaw = usdtScale * BigInt(25 + ((material.at(1) ?? 0) % 176))
   const now = new Date()
