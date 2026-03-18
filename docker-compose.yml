@@ -1,0 +1,51 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
+      target: dev
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      USE_MOCK_APIS: "true"
+      VITE_API_URL: http://localhost:3001
+      VITE_WS_URL: ws://localhost:3001
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./:/app
+      - api_node_modules:/app/node_modules
+      - api_workspace_node_modules:/app/packages/api/node_modules
+      - core_workspace_node_modules:/app/packages/core/node_modules
+    command: npm run dev --workspace=packages/api
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: packages/dashboard/Dockerfile
+      target: dev
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://localhost:3001
+      VITE_WS_URL: ws://localhost:3001
+    depends_on:
+      - api
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./:/app
+      - dashboard_node_modules:/app/node_modules
+      - dashboard_workspace_node_modules:/app/packages/dashboard/node_modules
+      - core_workspace_node_modules:/app/packages/core/node_modules
+    command: npm run dev --workspace=packages/dashboard -- --host 0.0.0.0
+
+volumes:
+  api_node_modules:
+  api_workspace_node_modules:
+  dashboard_node_modules:
+  dashboard_workspace_node_modules:
+  core_workspace_node_modules:
