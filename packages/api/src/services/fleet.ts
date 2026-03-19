@@ -1,7 +1,37 @@
 import { SUPPORTED_CHAINS, type Agent, type AgentBalance, type LendingPool } from '@arbiter/core'
-import { ALL_CHAIN_KEYS, DEFAULT_AGENT_CONFIG, formatUsdtHuman, toWalletChain, usdtRawToNumber } from '../chains.js'
+import { ALL_CHAIN_KEYS, DEFAULT_AGENT_CONFIG, formatNativeHuman, formatUsdtHuman, toWalletChain, usdtRawToNumber } from '../chains.js'
 import type { AgentRecord, ArbiterStore } from '../models.js'
-import { getUsdtBalance } from './wdk/walletService.js'
+import { getNativeBalance, getUsdtBalance } from './wdk/walletService.js'
+import { getExplorerUrl } from '../network.js'
+
+const LIVE_BALANCE_TIMEOUT_MS = 5000
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeoutHandle: NodeJS.Timeout | undefined
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          reject(new Error(`Balance lookup timed out after ${timeoutMs}ms`))
+        }, timeoutMs)
+      })
+    ])
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle)
+    }
+  }
+}
+
+async function readBalanceOrZero(fetchBalance: () => Promise<bigint>): Promise<bigint> {
+  try {
+    return await withTimeout(fetchBalance(), LIVE_BALANCE_TIMEOUT_MS)
+  } catch {
+    return 0n
+  }
+}
 
 export function sanitizeAgent(agent: AgentRecord): Agent {
   const { encryptedSeed: _encryptedSeed, ...sanitized } = agent
@@ -18,29 +48,40 @@ export function defaultAgentConfig() {
 }
 
 export async function refreshAgentBalances(store: ArbiterStore, agent: AgentRecord): Promise<AgentBalance[]> {
-  const balances: AgentBalance[] = []
+  const balances = (
+    await Promise.all(
+      ALL_CHAIN_KEYS.map(async (chainKey) => {
+        const wallet = agent.wallets[chainKey]
+        if (!wallet) {
+          return null
+        }
 
-  for (const chainKey of ALL_CHAIN_KEYS) {
-    const wallet = agent.wallets[chainKey]
-    if (!wallet) {
-      continue
-    }
+        const walletChainKey = toWalletChain(chainKey)
+        const usdtRaw = await readBalanceOrZero(() =>
+          getUsdtBalance({
+            encryptedSeed: agent.encryptedSeed,
+            chainKey: walletChainKey
+          })
+        )
+        const nativeRaw = await readBalanceOrZero(() =>
+          getNativeBalance({
+            encryptedSeed: agent.encryptedSeed,
+            chainKey: walletChainKey
+          })
+        )
 
-    const usdtRaw = await getUsdtBalance({
-      encryptedSeed: agent.encryptedSeed,
-      chainKey: toWalletChain(chainKey)
-    })
-
-    balances.push({
-      agentId: agent.id,
-      chainKey,
-      address: wallet.address,
-      usdtRaw,
-      usdtHuman: formatUsdtHuman(usdtRaw, chainKey),
-      nativeHuman: chainKey === 'BITCOIN' ? '0.10' : '1.25',
-      updatedAt: new Date()
-    })
-  }
+        return {
+          agentId: agent.id,
+          chainKey,
+          address: wallet.address,
+          usdtRaw,
+          usdtHuman: formatUsdtHuman(usdtRaw, chainKey),
+          nativeHuman: formatNativeHuman(nativeRaw, chainKey),
+          updatedAt: new Date()
+        } satisfies AgentBalance
+      })
+    )
+  ).filter((balance): balance is AgentBalance => balance !== null)
 
   await store.upsertBalances(balances)
   return balances
@@ -86,6 +127,5 @@ export async function calculateLendingPool(store: ArbiterStore): Promise<Lending
 }
 
 export function explorerUrl(chainKey: AgentBalance['chainKey'], txHash: string): string {
-  return `${SUPPORTED_CHAINS[chainKey].explorer}/${txHash}`
+  return getExplorerUrl(chainKey, txHash)
 }
-

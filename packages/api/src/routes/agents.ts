@@ -44,6 +44,29 @@ function mergeConfig(config?: Partial<AgentConfig>): AgentConfig {
   }
 }
 
+function roleConfigDefaults(role: z.infer<typeof createAgentSchema>['role']): Partial<AgentConfig> {
+  if (role === 'lender') {
+    return {
+      lendingOptIn: true,
+      minBalanceFloor: 15,
+      preferredChains: ['POLYGON', 'ETHEREUM']
+    }
+  }
+
+  if (role === 'borrower') {
+    return {
+      lendingOptIn: false,
+      minBalanceFloor: 5,
+      preferredChains: ['POLYGON', 'ETHEREUM']
+    }
+  }
+
+  return {
+    lendingOptIn: false,
+    preferredChains: ['POLYGON', 'ETHEREUM']
+  }
+}
+
 export function createAgentsRouter(store: ArbiterStore, ws: WebSocketHub): Router {
   const router = Router()
 
@@ -68,7 +91,7 @@ export function createAgentsRouter(store: ArbiterStore, ws: WebSocketHub): Route
         name: parsed.name,
         role: parsed.role,
         status: 'idle',
-        config: mergeConfig(parsed.config),
+        config: mergeConfig({ ...roleConfigDefaults(parsed.role), ...parsed.config }),
         creditScore: 500,
         wallets: walletResult.wallets.reduce<AgentRecord['wallets']>((accumulator, wallet) => {
           const chainKey = toCoreChain(wallet.chainKey)
@@ -83,7 +106,15 @@ export function createAgentsRouter(store: ArbiterStore, ws: WebSocketHub): Route
       await store.createAgent(agent)
       await store.upsertCreditHistory(defaultCreditHistory(agent.id))
       await refreshAgentBalances(store, agent)
-      await publishEvent(store, ws, 'skill_executed', { agentId: agent.id, action: 'wallet_provisioned' })
+      await publishEvent(store, ws, 'skill_executed', {
+        agentId: agent.id,
+        borrowerAgentId: agent.id,
+        borrowerName: agent.name,
+        skillId: 'wallet-provisioned',
+        skillName: 'Wallet Provisioned',
+        status: 'success',
+        action: 'wallet_provisioned'
+      })
       sendJson(res, 201, sanitizeAgent(agent))
     })
   )
@@ -127,7 +158,7 @@ export function createAgentsRouter(store: ArbiterStore, ws: WebSocketHub): Route
         throw new HttpError(404, 'Agent not found')
       }
       if (parsed.status === 'paused') {
-        await publishEvent(store, ws, 'agent_paused', { agentId: updated.id })
+        await publishEvent(store, ws, 'agent_paused', { agentId: updated.id, borrowerAgentId: updated.id, borrowerName: updated.name })
       }
       sendOk(res, sanitizeAgent(updated))
     })
@@ -149,7 +180,10 @@ export function createAgentsRouter(store: ArbiterStore, ws: WebSocketHub): Route
     '/pause-all',
     asyncHandler(async (_req, res) => {
       const paused = await store.pauseAllAgents()
-      await publishEvent(store, ws, 'kill_switch', { pausedAgentIds: paused.map((agent) => agent.id) })
+      await publishEvent(store, ws, 'kill_switch', {
+        pausedAgentIds: paused.map((agent) => agent.id),
+        pausedAgentNames: paused.map((agent) => agent.name)
+      })
       sendOk(res, paused.map(sanitizeAgent))
     })
   )

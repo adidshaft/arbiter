@@ -10,7 +10,11 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -b",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check:testnet": "node ./scripts/check-testnet-readiness.mjs",
+    "deploy:test-token": "node ./scripts/deploy-evm-test-token.mjs",
+    "mint:test-token": "node ./scripts/mint-evm-test-token.mjs",
+    "render:supabase-sql": "node ./scripts/render-supabase-sql.mjs"
   },
   "dependencies": {
     "@arbiter/core": "0.1.0",
@@ -38,6 +42,7 @@
     "@types/node": "^20.17.30",
     "@types/supertest": "^6.0.3",
     "@types/ws": "^8.18.1",
+    "solc": "^0.8.30",
     "tsx": "^4.21.0",
     "typescript": "^5.4.0",
     "vitest": "^1.4.0"

@@ -262,6 +262,12 @@ export async function getUsdtBalance(input: MockWalletLookupInput): Promise<bigi
   )
 }
 
+export async function getNativeBalance(input: MockWalletLookupInput): Promise<bigint> {
+  return withLatency(input.seedPhrase, input.chainKey, 'getNativeBalance', () =>
+    ensureWallet(input.seedPhrase, input.chainKey, input.index ?? 0).nativeRaw,
+  )
+}
+
 export async function transferUsdt(input: MockWalletTransferInput): Promise<MockTransferReceipt> {
   return withLatency(input.seedPhrase, input.chainKey, 'transferUsdt', () => {
     const sender = createOrGetWallet(input.seedPhrase, input.chainKey, input.index ?? 0)
@@ -344,6 +350,7 @@ export async function setWalletState(input: MockWalletLookupInput & MockWalletSt
 export const wdkMock = {
   createWallet,
   getAddress,
+  getNativeBalance,
   getUsdtBalance,
   transferUsdt,
   bridgeUsdt,

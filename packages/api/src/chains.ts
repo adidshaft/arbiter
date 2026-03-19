@@ -1,23 +1,7 @@
 import { SUPPORTED_CHAINS, type AgentConfig, type ChainKey } from '@arbiter/core'
-import type { WalletChainKey } from './services/wdk/walletService.js'
+import { CORE_TO_WALLET_CHAIN, WALLET_TO_CORE_CHAIN, type WalletNetworkKey } from './network.js'
 
-export const CORE_TO_WALLET_CHAIN: Record<ChainKey, WalletChainKey> = {
-  ETHEREUM: 'ethereum',
-  POLYGON: 'polygon',
-  ARBITRUM: 'arbitrum',
-  SOLANA: 'solana',
-  TON: 'ton',
-  BITCOIN: 'bitcoin'
-}
-
-export const WALLET_TO_CORE_CHAIN: Record<WalletChainKey, ChainKey> = {
-  ethereum: 'ETHEREUM',
-  polygon: 'POLYGON',
-  arbitrum: 'ARBITRUM',
-  solana: 'SOLANA',
-  ton: 'TON',
-  bitcoin: 'BITCOIN'
-}
+export type WalletChainKey = WalletNetworkKey
 
 export const ALL_CHAIN_KEYS = Object.keys(SUPPORTED_CHAINS) as ChainKey[]
 
@@ -57,6 +41,26 @@ export function usdtRawToNumber(value: bigint, chainKey: ChainKey): number {
 export function usdtNumberToRaw(value: number, chainKey: ChainKey): bigint {
   const decimals = SUPPORTED_CHAINS[chainKey].usdtDecimals
   return BigInt(Math.round(value * 10 ** decimals))
+}
+
+export function formatNativeHuman(value: bigint, chainKey: ChainKey): string {
+  const decimalsByChain: Record<ChainKey, number> = {
+    ETHEREUM: 18,
+    POLYGON: 18,
+    ARBITRUM: 18,
+    SOLANA: 9,
+    TON: 9,
+    BITCOIN: 8
+  }
+  const decimals = decimalsByChain[chainKey]
+  const divisor = 10n ** BigInt(decimals)
+  const whole = value / divisor
+  const fraction = value % divisor
+  if (fraction === 0n) {
+    return whole.toString()
+  }
+
+  return `${whole.toString()}.${fraction.toString().padStart(decimals, '0').replace(/0+$/, '')}`
 }
 
 export const DEFAULT_AGENT_CONFIG: AgentConfig = {

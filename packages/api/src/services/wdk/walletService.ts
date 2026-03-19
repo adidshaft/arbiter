@@ -1,6 +1,6 @@
 import crypto from 'node:crypto'
 
-import { Interface } from 'ethers'
+import { Interface, JsonRpcProvider } from 'ethers'
 import WDK from '@tetherto/wdk'
 import WalletManagerBtc from '@tetherto/wdk-wallet-btc'
 import WalletManagerEvm from '@tetherto/wdk-wallet-evm'
@@ -14,28 +14,23 @@ import {
   createWallet as mockCreateWallet,
   getAddress as mockGetAddress,
   getAllWallets as mockGetAllWallets,
+  getNativeBalance as mockGetNativeBalance,
   getUsdtBalance as mockGetUsdtBalance,
   setWalletState as mockSetWalletState,
   transferUsdt as mockTransferUsdt,
   type MockChainKey,
 } from './mock.js'
+import { getWalletChainConfig, getUsdtAddressForWalletChain, type WalletNetworkKey } from '../../network.js'
 
-export type WalletChainKey = MockChainKey
+export type WalletChainKey = WalletNetworkKey & MockChainKey
 
 export const ALL_WALLET_CHAINS = ['ethereum', 'polygon', 'arbitrum', 'solana', 'ton', 'bitcoin'] as const
 export const EVM_WALLET_CHAINS = ['ethereum', 'polygon', 'arbitrum'] as const
 
 const USDT_TRANSFER_INTERFACE = new Interface(['function transfer(address to, uint256 amount) returns (bool)'])
+const USDT_BALANCE_INTERFACE = new Interface(['function balanceOf(address account) view returns (uint256)'])
 const REAL_WDK_CACHE = new Map<string, RealWalletRuntime>()
-
-const DEFAULT_RPC_URLS: Readonly<Record<WalletChainKey, string | null>> = {
-  ethereum: process.env.ETH_RPC_URL ?? 'https://eth.drpc.org',
-  polygon: process.env.POLYGON_RPC_URL ?? 'https://polygon-rpc.com',
-  arbitrum: process.env.ARBITRUM_RPC_URL ?? 'https://arb1.arbitrum.io/rpc',
-  solana: process.env.SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com',
-  ton: process.env.TON_RPC_URL ?? 'https://toncenter.com/api/v2/jsonRPC',
-  bitcoin: null,
-} as const
+const EVM_PROVIDER_CACHE = new Map<string, JsonRpcProvider>()
 
 const DEFAULT_TRANSFER_MAX_FEE = 100_000_000_000_000n
 const DEFAULT_BRIDGE_MAX_FEE = 100_000_000_000_000n
@@ -68,6 +63,8 @@ export interface WalletAddressInput {
 }
 
 export interface WalletBalanceInput extends WalletAddressInput {}
+
+export interface WalletNativeBalanceInput extends WalletAddressInput {}
 
 export interface WalletTransferInput extends WalletAddressInput {
   recipient: string
@@ -146,6 +143,10 @@ interface RealBridgeProtocol {
 }
 
 function isMockModeEnabled(): boolean {
+  if (process.env.NODE_ENV === 'test') {
+    return true
+  }
+
   const value = process.env.USE_MOCK_APIS?.trim().toLowerCase()
   return value !== 'false' && value !== '0'
 }
@@ -183,6 +184,28 @@ function isEvmChain(chainKey: WalletChainKey): boolean {
   return chainKey === 'ethereum' || chainKey === 'polygon' || chainKey === 'arbitrum'
 }
 
+function getEvmProvider(chainKey: WalletChainKey): JsonRpcProvider {
+  if (!isEvmChain(chainKey)) {
+    throw new Error(`EVM provider requested for non-EVM chain ${chainKey}`)
+  }
+
+  const config = getWalletChainConfig(chainKey)
+  const rpcUrl = config.rpcUrl
+  if (!rpcUrl) {
+    throw new Error(`Missing RPC URL for chain ${chainKey}`)
+  }
+
+  const cacheKey = `${chainKey}:${rpcUrl}`
+  const cachedProvider = EVM_PROVIDER_CACHE.get(cacheKey)
+  if (cachedProvider) {
+    return cachedProvider
+  }
+
+  const provider = new JsonRpcProvider(rpcUrl)
+  EVM_PROVIDER_CACHE.set(cacheKey, provider)
+  return provider
+}
+
 function readRealRuntime(seedPhrase: string): RealWalletRuntime {
   const cachedRuntime = REAL_WDK_CACHE.get(seedPhrase)
   if (cachedRuntime) {
@@ -198,27 +221,28 @@ function buildRealRuntime(seedPhrase: string): RealWalletRuntime {
   const wdk = new WDK(seedPhrase) as unknown as RealWdkInstance
 
   wdk.registerWallet('ethereum', WalletManagerEvm, {
-    provider: DEFAULT_RPC_URLS.ethereum,
+    provider: getWalletChainConfig('ethereum').rpcUrl,
     transferMaxFee: DEFAULT_TRANSFER_MAX_FEE,
   })
   wdk.registerWallet('polygon', WalletManagerEvm, {
-    provider: DEFAULT_RPC_URLS.polygon,
+    provider: getWalletChainConfig('polygon').rpcUrl,
     transferMaxFee: DEFAULT_TRANSFER_MAX_FEE,
   })
   wdk.registerWallet('arbitrum', WalletManagerEvm, {
-    provider: DEFAULT_RPC_URLS.arbitrum,
+    provider: getWalletChainConfig('arbitrum').rpcUrl,
     transferMaxFee: DEFAULT_TRANSFER_MAX_FEE,
   })
   wdk.registerWallet('solana', WalletManagerSolana, {
-    rpcUrl: DEFAULT_RPC_URLS.solana,
+    rpcUrl: getWalletChainConfig('solana').rpcUrl,
   })
   wdk.registerWallet('ton', WalletManagerTon, {
-    endpoint: DEFAULT_RPC_URLS.ton,
+    endpoint: getWalletChainConfig('ton').rpcUrl,
   })
+  const bitcoinConfig = getWalletChainConfig('bitcoin')
   wdk.registerWallet('bitcoin', WalletManagerBtc, {
-    network: 'mainnet',
-    host: 'electrum.blockstream.info',
-    port: 50001,
+    network: bitcoinConfig.bitcoinNetwork ?? 'mainnet',
+    host: bitcoinConfig.bitcoinHost ?? 'electrum.blockstream.info',
+    port: bitcoinConfig.bitcoinPort ?? 50001,
   })
 
   return { seedPhrase, wdk }
@@ -234,36 +258,47 @@ async function getRealAccountAddress(runtime: RealWalletRuntime, chainKey: Walle
 }
 
 async function getRealUsdtBalance(runtime: RealWalletRuntime, chainKey: WalletChainKey, index: number): Promise<bigint> {
-  const account = await getRealAccount(runtime, chainKey, index)
   const usdtAddress = getUsdtAddress(chainKey)
-  if (usdtAddress && account.getTokenBalance) {
-    return account.getTokenBalance(usdtAddress)
+  if (!usdtAddress) {
+    return 0n
   }
 
-  if (account.getBalance) {
-    return account.getBalance()
+  if (isEvmChain(chainKey)) {
+    const address = await getRealAccountAddress(runtime, chainKey, index)
+    const provider = getEvmProvider(chainKey)
+    const result = await provider.call({
+      to: usdtAddress,
+      data: USDT_BALANCE_INTERFACE.encodeFunctionData('balanceOf', [address])
+    })
+    const [balance] = USDT_BALANCE_INTERFACE.decodeFunctionResult('balanceOf', result)
+    return BigInt(balance.toString())
+  }
+
+  const account = await getRealAccount(runtime, chainKey, index)
+  if (account.getTokenBalance) {
+    return account.getTokenBalance(usdtAddress)
   }
 
   return 0n
 }
 
 function getUsdtAddress(chainKey: WalletChainKey): string | null {
-  if (chainKey === 'ethereum') {
-    return '0xdAC17F958D2ee523a2206206994597C13D831ec7'
+  return getUsdtAddressForWalletChain(chainKey)
+}
+
+async function getRealNativeBalance(runtime: RealWalletRuntime, chainKey: WalletChainKey, index: number): Promise<bigint> {
+  if (isEvmChain(chainKey)) {
+    const address = await getRealAccountAddress(runtime, chainKey, index)
+    const provider = getEvmProvider(chainKey)
+    return provider.getBalance(address)
   }
-  if (chainKey === 'polygon') {
-    return '0xc2132D05D31c914a87C6611C10748AEb04B58e8F'
+
+  const account = await getRealAccount(runtime, chainKey, index)
+  if (account.getBalance) {
+    return account.getBalance()
   }
-  if (chainKey === 'arbitrum') {
-    return '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9'
-  }
-  if (chainKey === 'solana') {
-    return 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB'
-  }
-  if (chainKey === 'ton') {
-    return 'EQCajaUU1XXSAjTD-xOV7pE49fGtg4q8kF3ELCOxj5Rq_eYZ'
-  }
-  return null
+
+  return 0n
 }
 
 export function generateAgentSeedPhrase(): string {
@@ -339,6 +374,18 @@ export async function getUsdtBalance(input: WalletBalanceInput): Promise<bigint>
   return getRealUsdtBalance(runtime, input.chainKey, index)
 }
 
+export async function getNativeBalance(input: WalletNativeBalanceInput): Promise<bigint> {
+  const seedPhrase = readSeedPhrase(input)
+  const index = input.index ?? 0
+
+  if (isMockModeEnabled()) {
+    return mockGetNativeBalance({ seedPhrase, chainKey: input.chainKey, index })
+  }
+
+  const runtime = readRealRuntime(seedPhrase)
+  return getRealNativeBalance(runtime, input.chainKey, index)
+}
+
 export async function transferUsdt(input: WalletTransferInput): Promise<WalletTransferReceipt> {
   const seedPhrase = readSeedPhrase(input)
   const index = input.index ?? 0
@@ -376,6 +423,8 @@ export async function transferUsdt(input: WalletTransferInput): Promise<WalletTr
     value: 0n,
     data,
   })
+
+  await getEvmProvider(input.chainKey).waitForTransaction(receipt.hash)
 
   return {
     chainKey: input.chainKey,

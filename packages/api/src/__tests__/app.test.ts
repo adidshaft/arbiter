@@ -1,3 +1,4 @@
+import type { Express } from 'express'
 import { describe, expect, it, beforeEach } from 'vitest'
 import request from 'supertest'
 import { readEnv } from '../config/env.js'
@@ -6,16 +7,18 @@ import { createMemoryStore } from '../db/memoryStore.js'
 import { seedDemoData } from '../seeds/demoData.js'
 import { createOrchestrator } from '../services/orchestrator.js'
 import { createWebSocketHub } from '../websocket.js'
+import type { ArbiterStore } from '../models.js'
 
 describe('arbiter api', () => {
-  const env = readEnv()
-  const store = createMemoryStore()
-  const ws = createWebSocketHub()
-  const orchestrator = createOrchestrator(store, ws)
-  const app = createApp(env, store, orchestrator, ws)
+  let app: Express
+  let store: ArbiterStore
 
   beforeEach(async () => {
-    await store.reset()
+    const env = readEnv()
+    store = createMemoryStore()
+    const ws = createWebSocketHub()
+    const orchestrator = createOrchestrator(store, ws)
+    app = createApp(env, store, orchestrator, ws)
     await seedDemoData(store)
   })
 

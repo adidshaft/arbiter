@@ -55,13 +55,27 @@ export class OrchestratorService {
       timestamp: new Date()
     }
     const stored = await this.store.createEvent(event)
-    this.ws.broadcast(type, payload)
+    this.ws.broadcast(type, {
+      ...stored.payload,
+      eventId: stored.id,
+      eventTimestamp: stored.timestamp.toISOString()
+    })
     return stored
   }
 
   private async createAlert(alert: Alert): Promise<Alert> {
     const stored = await this.store.createAlert(alert)
-    await this.emit('alert_created', { alertId: stored.id, agentId: stored.agentId, type: stored.type })
+    await this.emit('alert_created', {
+      id: stored.id,
+      alertId: stored.id,
+      agentId: stored.agentId,
+      type: stored.type,
+      severity: stored.severity,
+      message: stored.message,
+      metadata: stored.metadata,
+      dismissed: stored.dismissed,
+      createdAt: stored.createdAt.toISOString()
+    })
     return stored
   }
 
@@ -166,6 +180,7 @@ export class OrchestratorService {
     await this.emit('loan_requested', {
       requestId: request.id,
       borrowerAgentId: request.borrowerAgentId,
+      borrowerName: borrower.name,
       amount: request.amount,
       chainKey: request.chainKey
     })
@@ -200,7 +215,15 @@ export class OrchestratorService {
         dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
       }
       const storedRejectedLoan = await this.store.createLoan(rejectedLoan)
-      await this.emit('loan_rejected', { loanId: storedRejectedLoan.id, requestId: request.id, trustScore: trustRecord.score })
+      await this.emit('loan_rejected', {
+        loanId: storedRejectedLoan.id,
+        requestId: request.id,
+        borrowerAgentId: borrower.id,
+        borrowerName: borrower.name,
+        chainKey: request.chainKey,
+        amount: request.amount,
+        trustScore: trustRecord.score
+      })
       return storedRejectedLoan
     }
 
@@ -227,8 +250,11 @@ export class OrchestratorService {
     await this.emit('loan_approved', {
       loanId: storedLoan.id,
       borrowerAgentId: storedLoan.borrowerAgentId,
+      borrowerName: borrower.name,
       lenderAgentId: storedLoan.lenderAgentId,
-      principal: storedLoan.principal
+      lenderName: lenderMatch.lender.name,
+      amount: storedLoan.principal,
+      chainKey: storedLoan.chainKey
     })
     return storedLoan
   }
@@ -268,6 +294,7 @@ export class OrchestratorService {
         loanId: loan.id,
         fromChainKey: sourceChain,
         toChainKey: loan.chainKey,
+        amount: loan.principal,
         txHash: bridgeReceipt.hash
       })
     } else {
@@ -298,6 +325,10 @@ export class OrchestratorService {
 
     await this.emit('loan_disbursed', {
       loanId: updatedLoan.id,
+      borrowerAgentId: borrower.id,
+      borrowerName: borrower.name,
+      amount: updatedLoan.principal,
+      chainKey: updatedLoan.chainKey,
       lenderTxHash,
       bridgeTxHash,
       explorerUrl: explorerUrl(updatedLoan.chainKey, bridgeTxHash ?? lenderTxHash ?? '')
@@ -352,6 +383,10 @@ export class OrchestratorService {
 
     await this.emit('loan_repaid', {
       loanId: repaidLoan.id,
+      borrowerAgentId: borrower.id,
+      borrowerName: borrower.name,
+      amount: repaidLoan.totalRepayment,
+      chainKey: repaidLoan.chainKey,
       borrowerTxHash: repaidLoan.borrowerTxHash,
       totalRepayment: repaidLoan.totalRepayment
     })
@@ -481,7 +516,10 @@ export class OrchestratorService {
     await this.emit('skill_executed', {
       executionId: completedExecution.executionId,
       agentId: completedExecution.agentId,
+      borrowerAgentId: completedExecution.agentId,
+      borrowerName: agent.name,
       skillId: completedExecution.skillId,
+      skillName: skill.name,
       status: completedExecution.status
     })
     return completedExecution

@@ -16,7 +16,10 @@ export async function publishEvent(
     timestamp: new Date()
   }
   const stored = await store.createEvent(event)
-  ws.broadcast(type, payload)
+  ws.broadcast(type, {
+    ...stored.payload,
+    eventId: stored.id,
+    eventTimestamp: stored.timestamp.toISOString()
+  })
   return stored
 }
-

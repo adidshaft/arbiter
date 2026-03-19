@@ -68,6 +68,7 @@ export const SUPPORTED_CHAINS = {
 } as const
 
 export type ChainKey = keyof typeof SUPPORTED_CHAINS
+export type NetworkMode = 'mainnet' | 'testnet'
 export type AgentRole = 'lender' | 'borrower' | 'executor' | 'orchestrator'
 export type AgentStatus = 'idle' | 'executing' | 'lending' | 'borrowing' | 'paused'
 export type TrustScore = 'GREEN' | 'YELLOW' | 'RED' | 'UNKNOWN'
@@ -247,4 +248,3 @@ export interface OrchestratorEvent {
   payload: Record<string, unknown>
   timestamp: Date
 }
-

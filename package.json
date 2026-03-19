@@ -5,7 +5,11 @@
   "scripts": {
     "dev": "concurrently \"npm run dev --workspace=packages/api\" \"npm run dev --workspace=packages/dashboard\"",
     "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "testnet:check": "npm run check:testnet --workspace=@arbiter/api",
+    "testnet:deploy-token": "npm run deploy:test-token --workspace=@arbiter/api --",
+    "testnet:mint-token": "npm run mint:test-token --workspace=@arbiter/api --",
+    "supabase:render-sql": "npm run render:supabase-sql --workspace=@arbiter/api --"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

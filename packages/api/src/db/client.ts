@@ -279,36 +279,67 @@ function asRow(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
+function normalizeTablePrefix(value: string): string {
+  return value.trim()
+}
+
+function createTableNames(prefix: string): Record<
+  | 'agents'
+  | 'contractTrustRecords'
+  | 'loans'
+  | 'creditHistory'
+  | 'agentBalances'
+  | 'skillExecutions'
+  | 'alerts'
+  | 'orchestratorEvents',
+  string
+> {
+  const normalizedPrefix = normalizeTablePrefix(prefix)
+  return {
+    agents: `${normalizedPrefix}agents`,
+    contractTrustRecords: `${normalizedPrefix}contract_trust_records`,
+    loans: `${normalizedPrefix}loans`,
+    creditHistory: `${normalizedPrefix}credit_history`,
+    agentBalances: `${normalizedPrefix}agent_balances`,
+    skillExecutions: `${normalizedPrefix}skill_executions`,
+    alerts: `${normalizedPrefix}alerts`,
+    orchestratorEvents: `${normalizedPrefix}orchestrator_events`
+  }
+}
+
 class SupabaseStore implements ArbiterStore {
   readonly mode = 'supabase' as const
+  private readonly tableNames: ReturnType<typeof createTableNames>
 
-  constructor(private readonly client: SupabaseClient) {}
+  constructor(private readonly client: SupabaseClient, tablePrefix: string) {
+    this.tableNames = createTableNames(tablePrefix)
+  }
 
   async reset(): Promise<void> {
-    await this.client.from('orchestrator_events').delete().neq('id', '')
-    await this.client.from('alerts').delete().neq('id', '')
-    await this.client.from('skill_executions').delete().neq('execution_id', '')
-    await this.client.from('agent_balances').delete().neq('id', '')
-    await this.client.from('credit_history').delete().neq('agent_id', '')
-    await this.client.from('loans').delete().neq('id', '')
-    await this.client.from('contract_trust_records').delete().neq('id', '')
-    await this.client.from('agents').delete().neq('id', '')
+    await this.client.from(this.tableNames.orchestratorEvents).delete().neq('id', '')
+    await this.client.from(this.tableNames.alerts).delete().neq('id', '')
+    await this.client.from(this.tableNames.skillExecutions).delete().neq('execution_id', '')
+    await this.client.from(this.tableNames.agentBalances).delete().neq('id', '')
+    await this.client.from(this.tableNames.creditHistory).delete().neq('agent_id', '')
+    await this.client.from(this.tableNames.loans).delete().neq('id', '')
+    await this.client.from(this.tableNames.contractTrustRecords).delete().neq('id', '')
+    await this.client.from(this.tableNames.agents).delete().neq('id', '')
   }
 
   async listAgents(): Promise<AgentRecord[]> {
-    const { data, error } = await this.client.from('agents').select('*').order('created_at', { ascending: true })
+    const { data, error } = await this.client.from(this.tableNames.agents).select('*').order('created_at', { ascending: true })
     if (error) throw new Error(error.message)
     return ((data ?? []) as Record<string, unknown>[]).map(deserializeAgentRecord)
   }
 
   async getAgent(id: string): Promise<AgentRecord | null> {
-    const { data, error } = await this.client.from('agents').select('*').eq('id', id).maybeSingle()
+    const { data, error } = await this.client.from(this.tableNames.agents).select('*').eq('id', id).maybeSingle()
     if (error) throw new Error(error.message)
     return data ? deserializeAgentRecord(asRow(data)) : null
   }
 
   async createAgent(agent: AgentRecord): Promise<AgentRecord> {
-    const data = await expectData(this.client.from('agents').insert(serializeAgentRecord(agent)).select('*').single())
+    const data = await expectData(this.client.from(this.tableNames.agents).insert(serializeAgentRecord(agent)).select('*').single())
     return deserializeAgentRecord(asRow(data))
   }
 
@@ -322,45 +353,45 @@ class SupabaseStore implements ArbiterStore {
     if (patch.wallets !== undefined) payload.wallets = patch.wallets
     if (patch.encryptedSeed !== undefined) payload.encrypted_seed = patch.encryptedSeed
     if (patch.updatedAt !== undefined) payload.updated_at = patch.updatedAt.toISOString()
-    const { data, error } = await this.client.from('agents').update(payload).eq('id', id).select('*').maybeSingle()
+    const { data, error } = await this.client.from(this.tableNames.agents).update(payload).eq('id', id).select('*').maybeSingle()
     if (error) throw new Error(error.message)
     return data ? deserializeAgentRecord(asRow(data)) : null
   }
 
   async deleteAgent(id: string): Promise<boolean> {
-    const { error } = await this.client.from('agents').delete().eq('id', id)
+    const { error } = await this.client.from(this.tableNames.agents).delete().eq('id', id)
     if (error) throw new Error(error.message)
     return true
   }
 
   async pauseAllAgents(): Promise<AgentRecord[]> {
-    const { data, error } = await this.client.from('agents').update({ status: 'paused' }).neq('id', '').select('*')
+    const { data, error } = await this.client.from(this.tableNames.agents).update({ status: 'paused' }).neq('id', '').select('*')
     if (error) throw new Error(error.message)
     return ((data ?? []) as Record<string, unknown>[]).map(deserializeAgentRecord)
   }
 
   async listBalances(): Promise<AgentBalance[]> {
-    const { data, error } = await this.client.from('agent_balances').select('*')
+    const { data, error } = await this.client.from(this.tableNames.agentBalances).select('*')
     if (error) throw new Error(error.message)
     return ((data ?? []) as Record<string, unknown>[]).map(deserializeBalance)
   }
 
   async listBalancesByAgent(agentId: string): Promise<AgentBalance[]> {
-    const { data, error } = await this.client.from('agent_balances').select('*').eq('agent_id', agentId)
+    const { data, error } = await this.client.from(this.tableNames.agentBalances).select('*').eq('agent_id', agentId)
     if (error) throw new Error(error.message)
     return ((data ?? []) as Record<string, unknown>[]).map(deserializeBalance)
   }
 
   async upsertBalance(balance: AgentBalance): Promise<AgentBalance> {
     const data = await expectData(
-      this.client.from('agent_balances').upsert(serializeBalance(balance), { onConflict: 'id' }).select('*').single()
+      this.client.from(this.tableNames.agentBalances).upsert(serializeBalance(balance), { onConflict: 'id' }).select('*').single()
     )
     return deserializeBalance(asRow(data))
   }
 
   async upsertBalances(balances: AgentBalance[]): Promise<AgentBalance[]> {
     const { data, error } = await this.client
-      .from('agent_balances')
+      .from(this.tableNames.agentBalances)
       .upsert(balances.map(serializeBalance), { onConflict: 'id' })
       .select('*')
     if (error) throw new Error(error.message)
@@ -368,19 +399,19 @@ class SupabaseStore implements ArbiterStore {
   }
 
   async deleteBalancesForAgent(agentId: string): Promise<void> {
-    const { error } = await this.client.from('agent_balances').delete().eq('agent_id', agentId)
+    const { error } = await this.client.from(this.tableNames.agentBalances).delete().eq('agent_id', agentId)
     if (error) throw new Error(error.message)
   }
 
   async listTrustRecords(): Promise<ContractTrustRecord[]> {
-    const { data, error } = await this.client.from('contract_trust_records').select('*')
+    const { data, error } = await this.client.from(this.tableNames.contractTrustRecords).select('*')
     if (error) throw new Error(error.message)
     return ((data ?? []) as Record<string, unknown>[]).map(deserializeTrustRecord)
   }
 
   async findTrustRecord(contractAddress: string, chainKey: ContractTrustRecord['chainKey']): Promise<ContractTrustRecord | null> {
     const { data, error } = await this.client
-      .from('contract_trust_records')
+      .from(this.tableNames.contractTrustRecords)
       .select('*')
       .eq('contract_address', contractAddress)
       .eq('chain_key', chainKey)
@@ -392,7 +423,7 @@ class SupabaseStore implements ArbiterStore {
   async upsertTrustRecord(record: ContractTrustRecord): Promise<ContractTrustRecord> {
     const data = await expectData(
       this.client
-        .from('contract_trust_records')
+        .from(this.tableNames.contractTrustRecords)
         .upsert(serializeTrustRecord(record), { onConflict: 'contract_address,chain_key' })
         .select('*')
         .single()
@@ -401,25 +432,25 @@ class SupabaseStore implements ArbiterStore {
   }
 
   async deleteTrustRecord(contractAddress: string): Promise<boolean> {
-    const { error } = await this.client.from('contract_trust_records').delete().eq('contract_address', contractAddress)
+    const { error } = await this.client.from(this.tableNames.contractTrustRecords).delete().eq('contract_address', contractAddress)
     if (error) throw new Error(error.message)
     return true
   }
 
   async listLoans(): Promise<Loan[]> {
-    const { data, error } = await this.client.from('loans').select('*').order('created_at', { ascending: false })
+    const { data, error } = await this.client.from(this.tableNames.loans).select('*').order('created_at', { ascending: false })
     if (error) throw new Error(error.message)
     return ((data ?? []) as Record<string, unknown>[]).map(deserializeLoan)
   }
 
   async getLoan(id: string): Promise<Loan | null> {
-    const { data, error } = await this.client.from('loans').select('*').eq('id', id).maybeSingle()
+    const { data, error } = await this.client.from(this.tableNames.loans).select('*').eq('id', id).maybeSingle()
     if (error) throw new Error(error.message)
     return data ? deserializeLoan(asRow(data)) : null
   }
 
   async createLoan(loan: Loan): Promise<Loan> {
-    const data = await expectData(this.client.from('loans').insert(serializeLoan(loan)).select('*').single())
+    const data = await expectData(this.client.from(this.tableNames.loans).insert(serializeLoan(loan)).select('*').single())
     return deserializeLoan(asRow(data))
   }
 
@@ -435,39 +466,39 @@ class SupabaseStore implements ArbiterStore {
     if (patch.dueAt !== undefined) payload.due_at = patch.dueAt.toISOString()
     if (patch.lenderChainKey !== undefined) payload.lender_chain_key = patch.lenderChainKey
     if (patch.isCrossChain !== undefined) payload.is_cross_chain = patch.isCrossChain
-    const { data, error } = await this.client.from('loans').update(payload).eq('id', id).select('*').maybeSingle()
+    const { data, error } = await this.client.from(this.tableNames.loans).update(payload).eq('id', id).select('*').maybeSingle()
     if (error) throw new Error(error.message)
     return data ? deserializeLoan(asRow(data)) : null
   }
 
   async getCreditHistory(agentId: string): Promise<CreditHistory | null> {
-    const { data, error } = await this.client.from('credit_history').select('*').eq('agent_id', agentId).maybeSingle()
+    const { data, error } = await this.client.from(this.tableNames.creditHistory).select('*').eq('agent_id', agentId).maybeSingle()
     if (error) throw new Error(error.message)
     return data ? deserializeCreditHistory(asRow(data)) : null
   }
 
   async upsertCreditHistory(history: CreditHistory): Promise<CreditHistory> {
     const data = await expectData(
-      this.client.from('credit_history').upsert(serializeCreditHistory(history), { onConflict: 'agent_id' }).select('*').single()
+      this.client.from(this.tableNames.creditHistory).upsert(serializeCreditHistory(history), { onConflict: 'agent_id' }).select('*').single()
     )
     return deserializeCreditHistory(asRow(data))
   }
 
   async listSkillExecutions(): Promise<SkillExecution[]> {
-    const { data, error } = await this.client.from('skill_executions').select('*').order('started_at', { ascending: false })
+    const { data, error } = await this.client.from(this.tableNames.skillExecutions).select('*').order('started_at', { ascending: false })
     if (error) throw new Error(error.message)
     return ((data ?? []) as Record<string, unknown>[]).map(deserializeSkillExecution)
   }
 
   async getSkillExecution(id: string): Promise<SkillExecution | null> {
-    const { data, error } = await this.client.from('skill_executions').select('*').eq('execution_id', id).maybeSingle()
+    const { data, error } = await this.client.from(this.tableNames.skillExecutions).select('*').eq('execution_id', id).maybeSingle()
     if (error) throw new Error(error.message)
     return data ? deserializeSkillExecution(asRow(data)) : null
   }
 
   async createSkillExecution(execution: SkillExecution): Promise<SkillExecution> {
     const data = await expectData(
-      this.client.from('skill_executions').insert(serializeSkillExecution(execution)).select('*').single()
+      this.client.from(this.tableNames.skillExecutions).insert(serializeSkillExecution(execution)).select('*').single()
     )
     return deserializeSkillExecution(asRow(data))
   }
@@ -479,25 +510,25 @@ class SupabaseStore implements ArbiterStore {
     if (patch.error !== undefined) payload.error = patch.error
     if (patch.txHash !== undefined) payload.tx_hash = patch.txHash
     if (patch.completedAt !== undefined) payload.completed_at = patch.completedAt?.toISOString() ?? null
-    const { data, error } = await this.client.from('skill_executions').update(payload).eq('execution_id', id).select('*').maybeSingle()
+    const { data, error } = await this.client.from(this.tableNames.skillExecutions).update(payload).eq('execution_id', id).select('*').maybeSingle()
     if (error) throw new Error(error.message)
     return data ? deserializeSkillExecution(asRow(data)) : null
   }
 
   async listAlerts(): Promise<Alert[]> {
-    const { data, error } = await this.client.from('alerts').select('*').order('created_at', { ascending: false })
+    const { data, error } = await this.client.from(this.tableNames.alerts).select('*').order('created_at', { ascending: false })
     if (error) throw new Error(error.message)
     return ((data ?? []) as Record<string, unknown>[]).map(deserializeAlert)
   }
 
   async getAlert(id: string): Promise<Alert | null> {
-    const { data, error } = await this.client.from('alerts').select('*').eq('id', id).maybeSingle()
+    const { data, error } = await this.client.from(this.tableNames.alerts).select('*').eq('id', id).maybeSingle()
     if (error) throw new Error(error.message)
     return data ? deserializeAlert(asRow(data)) : null
   }
 
   async createAlert(alert: Alert): Promise<Alert> {
-    const data = await expectData(this.client.from('alerts').insert(serializeAlert(alert)).select('*').single())
+    const data = await expectData(this.client.from(this.tableNames.alerts).insert(serializeAlert(alert)).select('*').single())
     return deserializeAlert(asRow(data))
   }
 
@@ -505,19 +536,19 @@ class SupabaseStore implements ArbiterStore {
     const payload: Record<string, unknown> = {}
     if (patch.dismissed !== undefined) payload.dismissed = patch.dismissed
     if (patch.metadata !== undefined) payload.metadata = patch.metadata
-    const { data, error } = await this.client.from('alerts').update(payload).eq('id', id).select('*').maybeSingle()
+    const { data, error } = await this.client.from(this.tableNames.alerts).update(payload).eq('id', id).select('*').maybeSingle()
     if (error) throw new Error(error.message)
     return data ? deserializeAlert(asRow(data)) : null
   }
 
   async listEvents(limit = 100): Promise<OrchestratorEvent[]> {
-    const { data, error } = await this.client.from('orchestrator_events').select('*').order('timestamp', { ascending: false }).limit(limit)
+    const { data, error } = await this.client.from(this.tableNames.orchestratorEvents).select('*').order('timestamp', { ascending: false }).limit(limit)
     if (error) throw new Error(error.message)
     return ((data ?? []) as Record<string, unknown>[]).map(deserializeEvent)
   }
 
   async createEvent(event: OrchestratorEvent): Promise<OrchestratorEvent> {
-    const data = await expectData(this.client.from('orchestrator_events').insert(serializeEvent(event)).select('*').single())
+    const data = await expectData(this.client.from(this.tableNames.orchestratorEvents).insert(serializeEvent(event)).select('*').single())
     return deserializeEvent(asRow(data))
   }
 }
@@ -533,5 +564,5 @@ export function createStore(): ArbiterStore {
   }
 
   const client = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY)
-  return new SupabaseStore(client)
+  return new SupabaseStore(client, env.SUPABASE_TABLE_PREFIX)
 }
