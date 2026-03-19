@@ -13,8 +13,13 @@ export function useAlerts() {
 
   const dismissAlert = useMutation({
     mutationFn: (id: string) => apiPost<SerializedAlert>(`/api/alerts/${id}/dismiss`, {}),
+    onMutate: async (id) => {
+      queryClient.setQueryData<SerializedAlert[]>(['alerts'], (previous) =>
+        (previous ?? []).map((alert) => (alert.id === id ? { ...alert, dismissed: true } : alert))
+      )
+    },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['alerts'] })
+      void queryClient.refetchQueries({ queryKey: ['alerts'] })
     },
     onError: (error) => {
       toast.error(getApiErrorMessage(error))

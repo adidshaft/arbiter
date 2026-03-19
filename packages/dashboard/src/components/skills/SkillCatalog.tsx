@@ -1,15 +1,22 @@
-import type { SerializedAgent, SerializedAgentSkill } from '../../lib/types'
+import type { ChainKey } from '@arbiter/core'
+import type { SerializedAgentSkill } from '../../lib/types'
 import { formatSkillChains } from '../../lib/formatters'
 
 interface SkillCatalogProps {
   skills: SerializedAgentSkill[]
-  agents: SerializedAgent[]
+  selectedAgentId?: string
+  selectedChainKey: ChainKey
+  pendingSkillId?: string
   onExecute: (payload: { skillId: string; agentId: string; chainKey: SerializedAgentSkill['supportedChains'][number] }) => void
 }
 
-export default function SkillCatalog({ skills, agents, onExecute }: SkillCatalogProps): JSX.Element {
-  const defaultAgentId = agents[0]?.id
-
+export default function SkillCatalog({
+  skills,
+  selectedAgentId,
+  selectedChainKey,
+  pendingSkillId,
+  onExecute
+}: SkillCatalogProps): JSX.Element {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {skills.map((skill) => (
@@ -26,16 +33,15 @@ export default function SkillCatalog({ skills, agents, onExecute }: SkillCatalog
           <button
             type="button"
             className="arbiter-button mt-5"
-            disabled={!defaultAgentId || skill.supportedChains.length === 0}
+            disabled={!selectedAgentId || !skill.supportedChains.includes(selectedChainKey) || pendingSkillId !== undefined}
             onClick={() => {
-              const defaultChain = skill.supportedChains[0]
-              if (!defaultAgentId || !defaultChain) {
+              if (!selectedAgentId || !skill.supportedChains.includes(selectedChainKey)) {
                 return
               }
-              onExecute({ skillId: skill.skillId, agentId: defaultAgentId, chainKey: defaultChain })
+              onExecute({ skillId: skill.skillId, agentId: selectedAgentId, chainKey: selectedChainKey })
             }}
           >
-            Execute
+            {pendingSkillId === skill.skillId ? 'Executing...' : 'Execute'}
           </button>
         </div>
       ))}

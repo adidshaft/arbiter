@@ -1,9 +1,11 @@
+import { useMemo } from 'react'
 import { Bell, LayoutDashboard, ShieldCheck, WalletCards, Wrench } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useRealtimeFeed } from '../app/realtime'
 import { useAlerts } from '../hooks/useAlerts'
 import { useAgents } from '../hooks/useAgents'
 import AlertPanel from '../components/alerts/AlertPanel'
+import { NETWORK_MODE } from '../lib/constants'
 
 const navItems = [
   { to: '/', label: 'Fleet', icon: LayoutDashboard },
@@ -15,7 +17,21 @@ const navItems = [
 export default function AppShell(): JSX.Element {
   const { pauseAll } = useAgents()
   const { alerts, dismissAlert } = useAlerts()
-  const { connectionStatus, reconnectCount } = useRealtimeFeed()
+  const { connectionStatus, reconnectCount, alerts: realtimeAlerts, dismissAlert: dismissRealtimeAlert } = useRealtimeFeed()
+
+  const mergedAlerts = useMemo(() => {
+    const merged = new Map<string, typeof realtimeAlerts[number]>()
+
+    for (const alert of alerts.data ?? []) {
+      merged.set(alert.id, { ...alert, source: 'api' })
+    }
+
+    for (const alert of realtimeAlerts) {
+      merged.set(alert.id, alert)
+    }
+
+    return [...merged.values()].sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+  }, [alerts.data, realtimeAlerts])
 
   return (
     <div className="min-h-screen bg-radial bg-grid bg-[length:32px_32px]">
@@ -24,7 +40,9 @@ export default function AppShell(): JSX.Element {
           <div>
             <div className="arbiter-label">Arbiter</div>
             <h1 className="mt-3 text-3xl font-semibold text-sand">Treasury terminal</h1>
-            <p className="mt-3 text-sm text-sand/60">Hackathon Galáctica demo fleet with live orchestration and trust-aware lending.</p>
+            <p className="mt-3 text-sm text-sand/60">
+              AI agents with AI security screening, AI-native lending, and automated treasury settlement across live networks.
+            </p>
           </div>
           <nav className="mt-10 space-y-2">
             {navItems.map((item) => (
@@ -58,6 +76,9 @@ export default function AppShell(): JSX.Element {
                 <span className={`arbiter-badge ${connectionStatus === 'open' ? 'border-mint/30 bg-mint/10 text-mint' : 'border-amber-400/30 bg-amber-400/10 text-amber-100'}`}>
                   Websocket {connectionStatus}
                 </span>
+                <span className={`arbiter-badge ${NETWORK_MODE === 'testnet' ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-100' : 'border-white/15 bg-white/5 text-sand/75'}`}>
+                  {NETWORK_MODE}
+                </span>
                 <span className="arbiter-badge">Reconnects {reconnectCount}</span>
               </div>
             </div>
@@ -71,7 +92,13 @@ export default function AppShell(): JSX.Element {
               <Outlet />
             </div>
             <div className="space-y-6">
-              <AlertPanel alerts={alerts.data ?? []} onDismiss={(id) => dismissAlert.mutate(id)} />
+              <AlertPanel
+                alerts={mergedAlerts}
+                onDismiss={(id) => {
+                  dismissRealtimeAlert(id)
+                  dismissAlert.mutate(id)
+                }}
+              />
             </div>
           </div>
         </main>

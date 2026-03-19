@@ -6,9 +6,14 @@ import { useRealtimeFeed } from './realtime'
 import type { RealtimeAlert, RealtimeEvent, WebSocketEnvelope } from '../lib/types'
 
 function toRealtimeEvent(envelope: WebSocketEnvelope): RealtimeEvent {
+  const eventId = typeof envelope.payload.eventId === 'string'
+    ? envelope.payload.eventId
+    : `${envelope.type}:${envelope.timestamp}:${Math.random().toString(16).slice(2)}`
+  const timestamp = typeof envelope.payload.eventTimestamp === 'string' ? envelope.payload.eventTimestamp : envelope.timestamp
   return {
-    id: `${envelope.type}:${envelope.timestamp}:${Math.random().toString(16).slice(2)}`,
-    ...envelope
+    id: eventId,
+    ...envelope,
+    timestamp
   }
 }
 
@@ -25,37 +30,37 @@ function isAlertPayload(payload: Record<string, unknown>): payload is Record<str
 }
 
 function invalidationsFor(type: WebSocketEnvelope['type'], payload: Record<string, unknown>): string[][] {
-  const baseInvalidations: string[][] = []
+  const baseInvalidations: string[][] = [['events']]
   switch (type) {
     case 'loan_requested':
     case 'loan_approved':
     case 'loan_rejected':
     case 'loan_disbursed':
     case 'loan_repaid':
-      baseInvalidations.push(['loans'], ['pool'], ['agents'])
+      baseInvalidations.push(['loans'], ['pool'], ['agents'], ['balances'], ['credit'])
       break
     case 'trust_scored':
       baseInvalidations.push(['trust'])
       break
     case 'skill_executed':
-      baseInvalidations.push(['skills'], ['skillExecutions'])
+      baseInvalidations.push(['skills'], ['skillExecutions'], ['balances'])
       break
     case 'alert_created':
       baseInvalidations.push(['alerts'])
       break
     case 'agent_paused':
     case 'kill_switch':
-      baseInvalidations.push(['agents'], ['balances'])
+      baseInvalidations.push(['agents'], ['balances'], ['credit'])
       break
     case 'bridge_initiated':
-      baseInvalidations.push(['loans'], ['agents'])
+      baseInvalidations.push(['loans'], ['agents'], ['balances'])
       break
     default:
       break
   }
 
   if (typeof payload.agentId === 'string') {
-    baseInvalidations.push(['agent', payload.agentId], ['agent-balance', payload.agentId])
+    baseInvalidations.push(['agent', payload.agentId], ['balances', payload.agentId], ['credit', payload.agentId])
   }
 
   return baseInvalidations
@@ -97,6 +102,11 @@ export function WebSocketBridge(): JSX.Element | null {
 
     if (status === 'open' && event.type === 'loan_disbursed') {
       toast.success('Loan disbursed')
+      return
+    }
+
+    if (status === 'open' && event.type === 'loan_repaid') {
+      toast.success('Loan repaid')
     }
   }, [lastMessage, pushAlert, pushEvent, queryClient, status])
 

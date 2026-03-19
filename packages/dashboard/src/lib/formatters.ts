@@ -43,7 +43,7 @@ export function formatChain(chainKey: ChainKey): string {
 }
 
 export function getExplorerTxUrl(chainKey: ChainKey, hash: string): string {
-  return `${CHAIN_METADATA[chainKey].explorer}/${hash}`
+  return CHAIN_METADATA[chainKey].explorerTxTemplate.replace('{hash}', hash)
 }
 
 export function getTrustScoreStyle(score: TrustScore): { label: string; className: string } {

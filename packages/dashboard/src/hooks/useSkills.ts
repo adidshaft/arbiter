@@ -23,15 +23,21 @@ export function useSkills() {
       chainKey: SerializedSkillExecution['chainKey']
       input: Record<string, unknown>
     }) => apiPost<SerializedSkillExecution>('/api/skills/execute', payload),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['skillExecutions'] })
-      void queryClient.invalidateQueries({ queryKey: ['balances'] })
+    onMutate: () => ({ toastId: toast.loading('Executing skill on live agent...') }),
+    onSuccess: async (_result, _variables, context) => {
+      toast.dismiss(context?.toastId)
+      toast.success('Skill execution recorded')
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['skillExecutions'] }),
+        queryClient.refetchQueries({ queryKey: ['balances'] }),
+        queryClient.refetchQueries({ queryKey: ['events'] })
+      ])
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      toast.dismiss(context?.toastId)
       toast.error(getApiErrorMessage(error))
     }
   })
 
   return { skills, executions, executeSkill }
 }
-

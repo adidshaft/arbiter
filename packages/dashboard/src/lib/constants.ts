@@ -1,5 +1,7 @@
 import type { ChainKey, LoanStatus, TrustScore } from '@arbiter/core'
 
+export const NETWORK_MODE = import.meta.env.VITE_NETWORK_MODE === 'testnet' ? 'testnet' : 'mainnet'
+
 export const CHAIN_METADATA: Record<
   ChainKey,
   {
@@ -7,17 +9,74 @@ export const CHAIN_METADATA: Record<
     name: string
     symbol: string
     wdkKey: string
-    explorer: string
+    explorerTxTemplate: string
     isEvm: boolean
     accent: string
   }
-> = {
+> = NETWORK_MODE === 'testnet'
+  ? {
+      ETHEREUM: {
+        id: 11155111,
+        name: 'Ethereum Sepolia',
+        symbol: 'ETH',
+        wdkKey: 'ethereum',
+        explorerTxTemplate: 'https://sepolia.etherscan.io/tx/{hash}',
+        isEvm: true,
+        accent: '#8be9c4'
+      },
+      POLYGON: {
+        id: 80002,
+        name: 'Polygon Amoy',
+        symbol: 'POL',
+        wdkKey: 'polygon',
+        explorerTxTemplate: 'https://amoy.polygonscan.com/tx/{hash}',
+        isEvm: true,
+        accent: '#a46cff'
+      },
+      ARBITRUM: {
+        id: 421614,
+        name: 'Arbitrum Sepolia',
+        symbol: 'ETH',
+        wdkKey: 'arbitrum',
+        explorerTxTemplate: 'https://sepolia.arbiscan.io/tx/{hash}',
+        isEvm: true,
+        accent: '#6dd6ff'
+      },
+      SOLANA: {
+        id: 901,
+        name: 'Solana Devnet',
+        symbol: 'SOL',
+        wdkKey: 'solana',
+        explorerTxTemplate: 'https://explorer.solana.com/tx/{hash}?cluster=devnet',
+        isEvm: false,
+        accent: '#60f1a9'
+      },
+      TON: {
+        id: 1101,
+        name: 'TON Testnet',
+        symbol: 'TON',
+        wdkKey: 'ton',
+        explorerTxTemplate: 'https://testnet.tonviewer.com/transaction/{hash}',
+        isEvm: false,
+        accent: '#7bb2ff'
+      },
+      BITCOIN: {
+        id: 1,
+        name: 'Bitcoin Testnet',
+        symbol: 'BTC',
+        wdkKey: 'bitcoin',
+        explorerTxTemplate: 'https://blockstream.info/testnet/tx/{hash}',
+        isEvm: false,
+        accent: '#ffb56b'
+      }
+    }
+  : {
   ETHEREUM: {
     id: 1,
     name: 'Ethereum',
     symbol: 'ETH',
     wdkKey: 'ethereum',
-    explorer: 'https://etherscan.io/tx',
+    explorerTxTemplate: 'https://etherscan.io/tx/{hash}',
     isEvm: true,
     accent: '#8be9c4'
   },
@@ -26,7 +85,7 @@ export const CHAIN_METADATA: Record<
     name: 'Polygon',
     symbol: 'MATIC',
     wdkKey: 'polygon',
-    explorer: 'https://polygonscan.com/tx',
+    explorerTxTemplate: 'https://polygonscan.com/tx/{hash}',
     isEvm: true,
     accent: '#a46cff'
   },
@@ -35,7 +94,7 @@ export const CHAIN_METADATA: Record<
     name: 'Arbitrum',
     symbol: 'ETH',
     wdkKey: 'arbitrum',
-    explorer: 'https://arbiscan.io/tx',
+    explorerTxTemplate: 'https://arbiscan.io/tx/{hash}',
     isEvm: true,
     accent: '#6dd6ff'
   },
@@ -44,7 +103,7 @@ export const CHAIN_METADATA: Record<
     name: 'Solana',
     symbol: 'SOL',
     wdkKey: 'solana',
-    explorer: 'https://solscan.io/tx',
+    explorerTxTemplate: 'https://solscan.io/tx/{hash}',
     isEvm: false,
     accent: '#60f1a9'
   },
@@ -53,7 +112,7 @@ export const CHAIN_METADATA: Record<
     name: 'TON',
     symbol: 'TON',
     wdkKey: 'ton',
-    explorer: 'https://tonscan.org/tx',
+    explorerTxTemplate: 'https://tonscan.org/tx/{hash}',
     isEvm: false,
     accent: '#7bb2ff'
   },
@@ -62,7 +121,7 @@ export const CHAIN_METADATA: Record<
     name: 'Bitcoin',
     symbol: 'BTC',
     wdkKey: 'bitcoin',
-    explorer: 'https://blockstream.info/tx',
+    explorerTxTemplate: 'https://blockstream.info/tx/{hash}',
     isEvm: false,
     accent: '#ffb56b'
   }

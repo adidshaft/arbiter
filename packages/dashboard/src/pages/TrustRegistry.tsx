@@ -11,7 +11,7 @@ export default function TrustRegistry(): JSX.Element {
         <div className="arbiter-label">Trust registry</div>
         <h2 className="mt-2 text-xl font-semibold text-sand">Score or remove contracts</h2>
         <div className="mt-5">
-          <ContractScoreForm onSubmit={(payload) => trust.scoreContract.mutate(payload)} />
+          <ContractScoreForm onSubmit={(payload) => trust.scoreContract.mutate(payload)} isPending={trust.scoreContract.isPending} />
         </div>
       </div>
 
@@ -27,4 +27,3 @@ export default function TrustRegistry(): JSX.Element {
     </div>
   )
 }
-

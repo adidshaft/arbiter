@@ -30,13 +30,21 @@ export function useLending(agentIds: string[] = []) {
       targetContract: string
       taskDescription: string
     }) => apiPost<SerializedLoan>('/api/request', payload),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['loans'] })
-      void queryClient.invalidateQueries({ queryKey: ['pool'] })
-      void queryClient.invalidateQueries({ queryKey: ['agents'] })
-      void queryClient.invalidateQueries({ queryKey: ['balances'] })
+    onMutate: () => ({ toastId: toast.loading('Submitting live loan request...') }),
+    onSuccess: async (_result, _variables, context) => {
+      toast.dismiss(context?.toastId)
+      toast.success('Loan request submitted')
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['loans'] }),
+        queryClient.refetchQueries({ queryKey: ['pool'] }),
+        queryClient.refetchQueries({ queryKey: ['agents'] }),
+        queryClient.refetchQueries({ queryKey: ['balances'] }),
+        queryClient.refetchQueries({ queryKey: ['credit'] }),
+        queryClient.refetchQueries({ queryKey: ['events'] })
+      ])
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      toast.dismiss(context?.toastId)
       toast.error(getApiErrorMessage(error))
     }
   })
@@ -51,17 +59,24 @@ export function useLending(agentIds: string[] = []) {
 
   const repay = useMutation({
     mutationFn: (loanId: string) => apiPost<SerializedLoan>(`/api/${loanId}/repay`, {}),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['loans'] })
-      void queryClient.invalidateQueries({ queryKey: ['pool'] })
-      void queryClient.invalidateQueries({ queryKey: ['agents'] })
-      void queryClient.invalidateQueries({ queryKey: ['balances'] })
+    onMutate: () => ({ toastId: toast.loading('Submitting live repayment...') }),
+    onSuccess: async (_result, _variables, context) => {
+      toast.dismiss(context?.toastId)
+      toast.success('Loan repaid')
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['loans'] }),
+        queryClient.refetchQueries({ queryKey: ['pool'] }),
+        queryClient.refetchQueries({ queryKey: ['agents'] }),
+        queryClient.refetchQueries({ queryKey: ['balances'] }),
+        queryClient.refetchQueries({ queryKey: ['credit'] }),
+        queryClient.refetchQueries({ queryKey: ['events'] })
+      ])
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      toast.dismiss(context?.toastId)
       toast.error(getApiErrorMessage(error))
     }
   })
 
   return { loans, pool, credits, requestLoan, simulate, repay }
 }
-

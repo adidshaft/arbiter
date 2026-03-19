@@ -42,13 +42,21 @@ export default function AgentConfig(): JSX.Element {
           <div className="arbiter-label">Actions</div>
           <div className="mt-4 flex flex-wrap gap-3">
             <button className="arbiter-button" type="button" onClick={() => agents.updateStatus.mutate({ id, status: 'paused' })}>
-              Pause agent
+              {agents.updateStatus.isPending && agents.updateStatus.variables?.id === id && agents.updateStatus.variables.status === 'paused'
+                ? 'Pausing...'
+                : 'Pause agent'}
             </button>
-            <button className="arbiter-button-secondary" type="button" onClick={() => agents.updateStatus.mutate({ id, status: 'idle' })}>
-              Resume agent
+            <button
+              className="arbiter-button-secondary"
+              type="button"
+              onClick={() => agents.updateStatus.mutate({ id, status: 'idle' })}
+            >
+              {agents.updateStatus.isPending && agents.updateStatus.variables?.id === id && agents.updateStatus.variables.status === 'idle'
+                ? 'Resuming...'
+                : 'Resume agent'}
             </button>
             <button className="arbiter-button-secondary" type="button" onClick={() => agents.refreshBalances.mutate(id)}>
-              Refresh balances
+              {agents.refreshBalances.isPending && agents.refreshBalances.variables === id ? 'Refreshing...' : 'Refresh balances'}
             </button>
           </div>
         </div>

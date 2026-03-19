@@ -13,18 +13,30 @@ export function useTrust() {
   const scoreContract = useMutation({
     mutationFn: (payload: { contractAddress: string; chainKey: SerializedContractTrustRecord['chainKey'] }) =>
       apiPost<SerializedContractTrustRecord>('/api/trust/score', payload),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['trust'] })
+    onMutate: () => ({ toastId: toast.loading('Scoring contract with AI and heuristics...') }),
+    onSuccess: async (_result, _variables, context) => {
+      toast.dismiss(context?.toastId)
+      toast.success('Contract scored')
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['trust'] }),
+        queryClient.refetchQueries({ queryKey: ['events'] }),
+        queryClient.refetchQueries({ queryKey: ['alerts'] })
+      ])
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      toast.dismiss(context?.toastId)
       toast.error(getApiErrorMessage(error))
     }
   })
 
   const deleteContract = useMutation({
     mutationFn: (contractAddress: string) => apiDelete(`/api/trust/${contractAddress}`),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['trust'] })
+    onSuccess: async () => {
+      toast.success('Trust record removed')
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['trust'] }),
+        queryClient.refetchQueries({ queryKey: ['events'] })
+      ])
     },
     onError: (error) => {
       toast.error(getApiErrorMessage(error))
@@ -33,4 +45,3 @@ export function useTrust() {
 
   return { records, scoreContract, deleteContract }
 }
-

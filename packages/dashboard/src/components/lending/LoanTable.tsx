@@ -3,10 +3,12 @@ import { getLoanStatusStyle, formatAddress, formatDate, formatCurrency } from '.
 
 interface LoanTableProps {
   loans: SerializedLoan[]
+  isRepaying?: boolean
+  repayingLoanId?: string
   onRepay?: (loanId: string) => void
 }
 
-export default function LoanTable({ loans, onRepay }: LoanTableProps): JSX.Element {
+export default function LoanTable({ loans, isRepaying = false, repayingLoanId, onRepay }: LoanTableProps): JSX.Element {
   return (
     <div className="overflow-hidden rounded-2xl border border-white/10">
       <table className="min-w-full divide-y divide-white/10 text-sm">
@@ -23,6 +25,7 @@ export default function LoanTable({ loans, onRepay }: LoanTableProps): JSX.Eleme
         <tbody className="divide-y divide-white/5">
           {loans.map((loan) => {
             const status = getLoanStatusStyle(loan.status)
+            const canRepay = loan.status === 'disbursed' || loan.status === 'executing' || loan.status === 'repaying'
             return (
               <tr key={loan.id}>
                 <td className="px-4 py-3">
@@ -36,9 +39,14 @@ export default function LoanTable({ loans, onRepay }: LoanTableProps): JSX.Eleme
                 </td>
                 <td className="px-4 py-3 text-sand/60">{formatDate(loan.dueAt)}</td>
                 <td className="px-4 py-3 text-right">
-                  {onRepay && loan.status !== 'repaid' && loan.status !== 'rejected' && loan.status !== 'defaulted' ? (
-                    <button className="arbiter-button-secondary text-xs" type="button" onClick={() => onRepay(loan.id)}>
-                      Repay
+                  {onRepay && canRepay ? (
+                    <button
+                      className="arbiter-button-secondary text-xs"
+                      type="button"
+                      disabled={isRepaying}
+                      onClick={() => onRepay(loan.id)}
+                    >
+                      {isRepaying && repayingLoanId === loan.id ? 'Repaying...' : 'Repay'}
                     </button>
                   ) : null}
                 </td>
@@ -50,4 +58,3 @@ export default function LoanTable({ loans, onRepay }: LoanTableProps): JSX.Eleme
     </div>
   )
 }
-

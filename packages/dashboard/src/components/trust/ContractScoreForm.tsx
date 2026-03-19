@@ -4,9 +4,10 @@ import { CHAIN_ORDER } from '../../lib/constants'
 
 interface ContractScoreFormProps {
   onSubmit: (payload: { contractAddress: string; chainKey: ChainKey }) => void
+  isPending?: boolean
 }
 
-export default function ContractScoreForm({ onSubmit }: ContractScoreFormProps): JSX.Element {
+export default function ContractScoreForm({ onSubmit, isPending = false }: ContractScoreFormProps): JSX.Element {
   const [contractAddress, setContractAddress] = useState('0xfeed000000000000000000000000000000000005')
   const [chainKey, setChainKey] = useState<ChainKey>('POLYGON')
 
@@ -26,10 +27,9 @@ export default function ContractScoreForm({ onSubmit }: ContractScoreFormProps):
           </option>
         ))}
       </select>
-      <button className="arbiter-button" type="submit">
-        Score contract
+      <button className="arbiter-button" type="submit" disabled={isPending}>
+        {isPending ? 'Scoring...' : 'Score contract'}
       </button>
     </form>
   )
 }
-
