@@ -24,53 +24,74 @@ export default function AlertPanel({ alerts, onDismiss }: AlertPanelProps): JSX.
   }, [onDismiss, visibleAlerts])
 
   return (
-    <div className="arbiter-card">
-      <div className="flex items-center justify-between">
+    <div className="arbiter-card border-white/5">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <div className="arbiter-label">Alert Panel</div>
-          <h3 className="mt-2 text-lg font-semibold text-sand">Open alerts</h3>
+          <div className="arbiter-label opacity-40">Security Monitor</div>
+          <h3 className="mt-1 text-xl font-bold text-sand">Active Alerts</h3>
         </div>
-        <span className="arbiter-badge">{visibleAlerts.length} active</span>
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-mint/10 text-[11px] font-bold text-mint ring-1 ring-mint/20">
+          {visibleAlerts.length}
+        </div>
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="space-y-4">
         {visibleAlerts.length === 0 ? (
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-sand/60">
-            No active alerts. Fleet conditions look stable.
+          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-8 text-center">
+            <ShieldAlert className="mx-auto mb-3 text-white/10" size={32} />
+            <p className="text-xs font-medium text-sand/30 uppercase tracking-widest leading-loose">
+              System conditions<br />fully optimized
+            </p>
           </div>
         ) : (
           visibleAlerts.map((alert) => (
             <div
               key={alert.id}
               className={clsx(
-                'rounded-xl border p-4',
+                'group relative overflow-hidden rounded-2xl border p-5 transition-all duration-300 hover:scale-[1.02]',
                 alert.severity === 'critical'
-                  ? 'border-red-400/25 bg-red-400/8'
+                  ? 'border-red-500/20 bg-red-500/5'
                   : alert.severity === 'warning'
-                    ? 'border-amber-400/25 bg-amber-400/8'
+                    ? 'border-amber-500/20 bg-amber-500/5'
                     : 'border-mint/20 bg-mint/5'
               )}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex gap-3">
+              <div className="relative z-10 flex gap-4">
+                <div className={clsx(
+                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border',
+                  alert.severity === 'critical' ? 'border-red-500/20 text-red-400' : 
+                  alert.severity === 'warning' ? 'border-amber-500/20 text-amber-400' : 
+                  'border-mint/20 text-mint'
+                )}>
                   {alert.severity === 'critical' ? (
-                    <ShieldAlert className="mt-1 text-red-200" size={18} />
+                    <ShieldAlert size={20} />
                   ) : alert.severity === 'warning' ? (
-                    <AlertTriangle className="mt-1 text-amber-100" size={18} />
+                    <AlertTriangle size={20} />
                   ) : (
-                    <BellRing className="mt-1 text-mint" size={18} />
+                    <BellRing size={20} />
                   )}
-                  <div>
-                    <div className="arbiter-mono text-sm text-sand">{alert.message}</div>
-                    <div className="mt-1 text-xs text-sand/60">{humanizeAlert(alert as never)}</div>
-                    <div className="mt-2 text-[11px] uppercase tracking-[0.18em] text-sand/45">
+                </div>
+                
+                <div className="min-w-0 flex-1">
+                  <div className="arbiter-mono text-[13px] font-bold text-sand break-words leading-relaxed">
+                    {alert.message}
+                  </div>
+                  <div className="mt-2 text-xs font-semibold text-sand/40 italic">
+                    {humanizeAlert(alert as never)}
+                  </div>
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-sand/20">
                       {formatDate(alert.createdAt)}
-                    </div>
+                    </span>
+                    <button 
+                      type="button" 
+                      className="text-[10px] font-bold uppercase tracking-widest text-mint/60 hover:text-mint transition-colors cursor-pointer" 
+                      onClick={() => onDismiss(alert.id)}
+                    >
+                      Dismiss
+                    </button>
                   </div>
                 </div>
-                <button type="button" className="arbiter-button-secondary text-xs" onClick={() => onDismiss(alert.id)}>
-                  Dismiss
-                </button>
               </div>
             </div>
           ))

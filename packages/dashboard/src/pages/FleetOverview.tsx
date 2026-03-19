@@ -74,48 +74,62 @@ export default function FleetOverview(): JSX.Element {
         <StatCard label="Balances tracked" value={(balances.data?.length ?? 0).toString()} />
       </div>
 
-      <div className="arbiter-card">
-        <div className="arbiter-label">Agent control</div>
-        <h2 className="mt-2 text-xl font-semibold text-sand">Create live agents and seed the fleet</h2>
-        <form
-          className="mt-5 grid gap-4 lg:grid-cols-[1.4fr,220px,auto]"
-          onSubmit={(event) => {
-            event.preventDefault()
-            if (!newAgentName.trim()) {
-              return
-            }
-            agents.createAgent.mutate({ name: newAgentName.trim(), role: newAgentRole }, {
-              onSuccess: () => {
-                setNewAgentName('')
-              }
-            })
-          }}
-        >
-          <input className="arbiter-field" value={newAgentName} onChange={(event) => setNewAgentName(event.target.value)} placeholder="Agent name" />
-          <select className="arbiter-field" value={newAgentRole} onChange={(event) => setNewAgentRole(event.target.value as typeof newAgentRole)}>
-            <option value="lender">Lender</option>
-            <option value="borrower">Borrower</option>
-            <option value="executor">Executor</option>
-            <option value="orchestrator">Orchestrator</option>
-          </select>
-          <button className="arbiter-button" type="submit" disabled={!newAgentName.trim() || agents.createAgent.isPending}>
-            Create agent
-          </button>
-        </form>
-        <div className="mt-4 flex flex-wrap gap-2 text-xs text-sand/55">
-          {recommendedNames.map((entry) => (
-            <button
-              key={`${entry.role}:${entry.name}`}
-              type="button"
-              className="arbiter-badge"
-              onClick={() => {
-                setNewAgentName(entry.name)
-                setNewAgentRole(entry.role)
+      <div className="arbiter-card border-mint/10 bg-mint/5">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+          <div className="flex-1">
+            <div className="arbiter-label mb-3">Agent Provisioning</div>
+            <h2 className="text-2xl font-bold tracking-tight text-sand">Create and seed live agents</h2>
+            <p className="mt-2 text-sm text-sand/40">Deploy a new autonomous agent to the fleet with a specific role.</p>
+            
+            <form
+              className="mt-8 flex flex-col sm:flex-row items-stretch gap-3"
+              onSubmit={(event) => {
+                event.preventDefault()
+                if (!newAgentName.trim()) {
+                  return
+                }
+                agents.createAgent.mutate({ name: newAgentName.trim(), role: newAgentRole }, {
+                  onSuccess: () => {
+                    setNewAgentName('')
+                  }
+                })
               }}
             >
-              {entry.name}
-            </button>
-          ))}
+              <div className="flex-1">
+                <input className="arbiter-field h-12" value={newAgentName} onChange={(event) => setNewAgentName(event.target.value)} placeholder="Enter agent name..." />
+              </div>
+              <div className="w-full sm:w-48">
+                <select className="arbiter-field h-12 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%23f5f1e8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')] bg-[position:right_0.5rem_center] bg-[length:1.25em_1.25em] bg-no-repeat pr-10" value={newAgentRole} onChange={(event) => setNewAgentRole(event.target.value as typeof newAgentRole)}>
+                  <option value="lender">Lender</option>
+                  <option value="borrower">Borrower</option>
+                  <option value="executor">Executor</option>
+                  <option value="orchestrator">Orchestrator</option>
+                </select>
+              </div>
+              <button className="arbiter-button h-12 px-8 min-w-[140px]" type="submit" disabled={!newAgentName.trim() || agents.createAgent.isPending}>
+                {agents.createAgent.isPending ? 'Deploying...' : 'Deploy Agent'}
+              </button>
+            </form>
+          </div>
+          
+          <div className="lg:w-48">
+            <div className="arbiter-label mb-3 opacity-40">Templates</div>
+            <div className="flex flex-wrap gap-2">
+              {recommendedNames.map((entry) => (
+                <button
+                  key={`${entry.role}:${entry.name}`}
+                  type="button"
+                  className="arbiter-badge hover:bg-white/10 hover:text-sand transition-colors cursor-pointer"
+                  onClick={() => {
+                    setNewAgentName(entry.name)
+                    setNewAgentRole(entry.role)
+                  }}
+                >
+                  {entry.name}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 

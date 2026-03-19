@@ -34,64 +34,79 @@ export default function AppShell(): JSX.Element {
   }, [alerts.data, realtimeAlerts])
 
   return (
-    <div className="min-h-screen bg-radial bg-grid bg-[length:32px_32px]">
-      <div className="mx-auto flex min-h-screen max-w-[1800px]">
-        <aside className="hidden w-72 flex-col border-r border-white/8 bg-black/20 px-6 py-8 backdrop-blur-xl xl:flex">
+    <div className="min-h-screen bg-premium-bg">
+      <div className="fixed inset-0 bg-grid-pattern bg-[length:32px_32px] pointer-events-none opacity-20" />
+      <div className="relative mx-auto flex min-h-screen max-w-[1800px]">
+        <aside className="hidden w-80 flex-col border-r border-white/5 bg-black/40 px-8 py-10 backdrop-blur-3xl xl:flex">
           <div>
-            <div className="arbiter-label">Arbiter</div>
-            <h1 className="mt-3 text-3xl font-semibold text-sand">Treasury terminal</h1>
-            <p className="mt-3 text-sm text-sand/60">
-              AI agents with AI security screening, AI-native lending, and automated treasury settlement across live networks.
+            <div className="arbiter-label">Arbiter System</div>
+            <h1 className="mt-4 text-3xl font-bold tracking-tight text-sand">Treasury terminal</h1>
+            <p className="mt-4 text-[13px] leading-relaxed text-sand/50">
+              Agentic treasury dashboard for autonomous capital management, real-time risk screening, and cross-chain settlement.
             </p>
           </div>
-          <nav className="mt-10 space-y-2">
+          <nav className="mt-12 space-y-2">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${
-                    isActive ? 'bg-mint/10 text-mint shadow-glow' : 'text-sand/65 hover:bg-white/5 hover:text-sand'
+                  `flex items-center gap-4 rounded-2xl px-5 py-3.5 text-sm font-medium transition-all duration-300 ${
+                    isActive ? 'bg-mint/10 text-mint shadow-glow-mint' : 'text-sand/40 hover:bg-white/5 hover:text-sand/80'
                   }`
                 }
               >
-                <item.icon size={18} />
-                {item.label}
+                {({ isActive }) => (
+                  <>
+                    <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+                    {item.label}
+                  </>
+                )}
               </NavLink>
             ))}
           </nav>
-          <div className="mt-auto rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="arbiter-label">Fleet control</div>
-            <button className="arbiter-button mt-4 w-full justify-center" type="button" onClick={() => pauseAll.mutate()}>
-              Engage kill switch
-            </button>
+          <div className="mt-auto pt-8">
+            <div className="rounded-[2rem] border border-white/5 bg-white/[0.03] p-6">
+              <div className="arbiter-label mb-4 opacity-50">Operational Control</div>
+              <button
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-white/5 py-3 text-sm font-bold text-sand/80 transition-all hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 border border-transparent"
+                type="button"
+                onClick={() => pauseAll.mutate()}
+              >
+                Engage kill switch
+              </button>
+            </div>
           </div>
         </aside>
 
-        <main className="flex-1 px-4 py-6 md:px-6 xl:px-10">
-          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <main className="flex-1 px-6 py-8 md:px-10 xl:px-16 overflow-y-auto">
+          <header className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between animate-fade-in">
             <div>
-              <div className="arbiter-label">Runtime</div>
-              <div className="mt-2 flex items-center gap-3 text-sm text-sand/70">
-                <span className={`arbiter-badge ${connectionStatus === 'open' ? 'border-mint/30 bg-mint/10 text-mint' : 'border-amber-400/30 bg-amber-400/10 text-amber-100'}`}>
-                  Websocket {connectionStatus}
+              <div className="arbiter-label mb-2 opacity-50">System Status</div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className={`flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${connectionStatus === 'open' ? 'border-mint/20 bg-mint/5 text-mint' : 'border-amber-500/20 bg-amber-500/5 text-amber-500'}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${connectionStatus === 'open' ? 'bg-mint animate-pulse' : 'bg-amber-500'}`} />
+                  WS {connectionStatus}
                 </span>
-                <span className={`arbiter-badge ${NETWORK_MODE === 'testnet' ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-100' : 'border-white/15 bg-white/5 text-sand/75'}`}>
+                <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${NETWORK_MODE === 'testnet' ? 'border-cyan-500/20 bg-cyan-500/5 text-cyan-400' : 'border-white/10 bg-white/5 text-sand/60'}`}>
                   {NETWORK_MODE}
                 </span>
-                <span className="arbiter-badge">Reconnects {reconnectCount}</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/5 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-sand/40">
+                  {reconnectCount} Reconnects
+                </span>
               </div>
             </div>
-            <div className="hidden items-center gap-2 lg:flex">
-              <Bell size={16} className="text-mint" />
-              <span className="text-sm text-sand/60">Live updates stream into the event and alert panels automatically.</span>
+            <div className="hidden lg:flex items-center gap-3 px-4 py-2 rounded-2xl bg-white/[0.02] border border-white/5">
+              <Bell size={14} className="text-mint animate-pulse" />
+              <span className="text-[11px] font-medium text-sand/40 uppercase tracking-widest">Real-time Stream Active</span>
             </div>
-          </div>
-          <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr),360px]">
+          </header>
+          
+          <div className="grid gap-10 2xl:grid-cols-[minmax(0,1fr),380px]">
             <div className="min-w-0">
               <Outlet />
             </div>
-            <div className="space-y-6">
+            <aside className="space-y-8">
               <AlertPanel
                 alerts={mergedAlerts}
                 onDismiss={(id) => {
@@ -99,7 +114,7 @@ export default function AppShell(): JSX.Element {
                   dismissAlert.mutate(id)
                 }}
               />
-            </div>
+            </aside>
           </div>
         </main>
       </div>
