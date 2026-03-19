@@ -1,6 +1,6 @@
 # Arbiter
 
-Arbiter is a multi-agent treasury orchestration monorepo built for Hackathon Galáctica: WDK Edition 1 by Tether. It coordinates agent wallets across six chains, scores contract trust, orchestrates lending and repayment cycles, and streams live activity to a browser dashboard.
+Arbiter is a multi-agent treasury orchestration monorepo. It coordinates agent wallets across six chains, scores contract trust, orchestrates lending and repayment cycles, and streams live activity to a browser dashboard.
 
 ## What is included
 
@@ -63,6 +63,10 @@ npm run build
 npm run test
 ```
 
+5. Follow the detailed validation flow in [TESTING.md](./TESTING.md).
+
+6. For live WDK-backed testnet setup, start from [.env.testnet.example](./.env.testnet.example).
+
 ## Mock mode
 
 Arbiter runs in mock mode by default with `USE_MOCK_APIS=true`. In this mode:
@@ -109,14 +113,84 @@ curl -X POST http://localhost:3001/api/demo/cross-chain
 
 ## Real testnet setup
 
-1. Set `USE_MOCK_APIS=false` in your environment.
-2. Provide real RPC URLs for the chains you want to use.
-3. Set a valid `AGENT_ENCRYPTION_KEY` and keep it private.
-4. Replace placeholder Supabase values if you want persistent storage.
-5. Start the API and create agents from the dashboard.
-6. Confirm the target wallets and balances before enabling live execution.
+Arbiter now supports a dedicated `testnet` network mode for the real WDK path.
+
+1. Copy [.env.testnet.example](./.env.testnet.example) into your local `.env`.
+2. Set:
+   - `NETWORK_MODE=testnet`
+   - `USE_MOCK_APIS=false`
+   - `VITE_NETWORK_MODE=testnet`
+3. Fill in a real `AGENT_ENCRYPTION_KEY`.
+4. Fill in `TESTNET_DEPLOYER_PRIVATE_KEY` if you want to deploy your own EVM test tokens.
+5. Fill in the RPC URLs for the chains you plan to use.
+5. Keep `ETH_SEPOLIA_USDT_ADDRESS=0xd077a400968890eacc75cdc901f0356c943e4fdb` unless the official WDK docs change.
+6. Fill in any remaining test token contract addresses you plan to use:
+   - `POLYGON_AMOY_USDT_ADDRESS`
+   - `ARBITRUM_SEPOLIA_USDT_ADDRESS`
+   - `SOLANA_DEVNET_USDT_ADDRESS`
+   - `TON_TESTNET_USDT_ADDRESS`
+7. Point `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_KEY` at your hosted project if you want persistent storage.
+8. If you are sharing a Supabase project with another app, set `SUPABASE_TABLE_PREFIX=arbiter_`.
+9. Run `npm run testnet:check` before starting the app.
+10. Start the app, create fresh agents, and verify balances before testing transfers or bridges.
 
 In real mode, Arbiter still keeps WDK usage local to the API process and never exposes seed phrases in responses or logs.
+
+### What is already wired up
+
+- testnet-aware RPC switching
+- testnet explorer links in the dashboard
+- Bitcoin testnet electrum settings
+- Ethereum Sepolia USDT configured by default
+- real native balance reads through the wallet service
+- testnet readiness checks for env, EVM RPCs, and hosted Supabase schema
+- deploy and mint scripts for custom EVM 6-decimal test tokens on Sepolia, Amoy, and Arbitrum Sepolia
+
+### What still depends on your environment
+
+- funded wallets on the selected testnets
+- valid testnet USDT contracts for Polygon Amoy, Arbitrum Sepolia, Solana devnet, and TON testnet if you want those chains live
+- a bridge path that is actually supported by the WDK and hackathon setup
+
+### Shared Supabase project
+
+If you want to reuse the hosted Supabase project from your other desktop repo, Arbiter can point at it directly via `.env`.
+
+- The easiest schema path is to run [001_initial.sql](./supabase/migrations/001_initial.sql) in the Supabase SQL editor.
+- If you want prefixed tables for a shared project, render the SQL first:
+
+```bash
+npm run supabase:render-sql -- --prefix arbiter_ --out ./supabase/arbiter_shared.sql
+```
+
+- Then paste `./supabase/arbiter_shared.sql` into the SQL editor and run it once.
+- A ready-made prefixed file is already checked in at [supabase/arbiter_shared.sql](./supabase/arbiter_shared.sql).
+- `supabase db push` is not the right first move against that shared project right now, because its migration history already contains the other app's remote migrations.
+- `npm run testnet:check` will tell you whether the configured agents table is reachable with your current service key.
+
+### Deploy your own EVM test tokens
+
+If Polygon Amoy or Arbitrum Sepolia do not have an official test USDT address you can verify, you can deploy your own 6-decimal ERC-20 and plug it into Arbiter.
+
+Deploy on Amoy:
+
+```bash
+npm run testnet:deploy-token -- --chain polygon --name "Arbiter Amoy USDT" --symbol "aUSDT"
+```
+
+Deploy on Arbitrum Sepolia:
+
+```bash
+npm run testnet:deploy-token -- --chain arbitrum --name "Arbiter ArbSep USDT" --symbol "aUSDT"
+```
+
+Mint more tokens later:
+
+```bash
+npm run testnet:mint-token -- --chain polygon --token <TOKEN_ADDRESS> --recipient <WALLET_ADDRESS> --amount 5000
+```
+
+Each deploy prints the exact `.env` line to copy back into your config.
 
 ## Project structure
 
